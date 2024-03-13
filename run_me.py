@@ -12,11 +12,11 @@ import pdb
 
 
 class Main:
-    directory_path = "files/samples"
-    screen_analysis_table = "screen_analysis"
-    screen_report_table = "screen_report"
+    directory_path = "files"
+    screen_analysis_table = "image_analysis"
+    screen_report_table = "image_report"
     file_extension = ".png"
-    threshold = 0.02
+    threshold = 0.0048
 
     def __init__(self):
         self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
@@ -155,11 +155,11 @@ class Main:
             # )
             print("Connecting the database...")
             self.conn = psycopg2.connect(
-                host = "db-postgresql-nyc3-58921-do-user-2010789-0.c.db.ondigitalocean.com",
-                database = "defaultdb",
-                user="doadmin",
-                password = "AVNS_EjI4gNPXxHQ0CkfY_Ut",
-                port = "25060",
+                host = "192.168.2.24",
+                database = "production",
+                user="postgres",
+                password = "postgrespassword",
+                port = "5432",
             )
             self.cursor = self.conn.cursor()
 
@@ -185,7 +185,10 @@ class Main:
                     client_id INT,
                     laptop_id INT,
                     result JSON,
-                    created_at TIMESTAMP default current_timestamp
+                    created_at TIMESTAMP default current_timestamp,
+                    approved_by INT,
+                    approved_at TIMESTAMP,
+                    approved_status VARCHAR(30)
                 )
             '''
             self.cursor.execute(report_table_creation)
@@ -203,8 +206,8 @@ class Main:
 if __name__ == "__main__":
     main = Main()
     main.create_db_connection()
-    # main.start_process()
-    main.demo_process()
+    main.start_process()
+    # main.demo_process()
     main.close_db_connection()
     # main.test_model()
 
