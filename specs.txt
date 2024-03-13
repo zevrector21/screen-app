@@ -1,3 +1,8 @@
 https://pypi.org/project/nsfw-detector/
 https://s3.amazonaws.com/ir_public/nsfwjscdn/nsfw_mobilenet2.224x224.h5
 https://medium.com/@dikosaktiprabowo/build-your-own-nsfw-image-detector-with-tensorflow-5ce4eea5fe4d
+
+python3.9
+virtualenv -p python3.9 venv
+source venv/bin/activate
+pip install -r requirements.txt
