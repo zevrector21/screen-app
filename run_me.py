@@ -19,10 +19,19 @@ class Main:
     file_extension = ".png"
     nsfw_threshold = 0.0048
     film_threshold = 0.75
+    prev_threshold = 0.02
+    prev_threshold2 = 0.01
+    dictionary = {
+        "hentai": "성관련",
+        "sexy": "성관련",
+        "porn": "성관련",
+        "film": "영화",
+        "betting": "도박",
+    }
 
     def __init__(self):
-        # self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
-        # self.betting_model = load_model('model_apps')
+        self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
+        self.betting_model = load_model('model_apps')
         self.film_pipe = pipeline("image-classification", model="pszemraj/beit-large-patch16-512-film-shot-classifier")
         # self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier")
 
@@ -40,7 +49,7 @@ class Main:
         print("Start demo...")
 
         file_list = os.listdir(self.directory_path)
-        for idx in range(1, 10):
+        for idx in range(1, 5):
             # screen[1] file path
             filename = random.choice(file_list)
             if not filename.endswith(self.file_extension):
@@ -52,7 +61,7 @@ class Main:
             nsfw_result = predict.classify(self.model, full_path_name)
             film_result = self.film_pipe(image)[0]
             betting_result = self.check_betting(full_path_name)
-            self.insert_data_into_db([idx, random.randint(1, 50), random.randint(1, 50), 'path'], nsfw_result, film_result, betting_result)
+            self.insert_data_into_db([idx, 1, 1, 'path'], nsfw_result, film_result, betting_result)
 
     def start_process(self):
         print("Start processing...")
@@ -84,6 +93,25 @@ class Main:
         print(class_names[pred_label.numpy()[0]])
         return 1.0 - pred_label.numpy()[0]
     
+    def fetch_prev_records(self, client_id, laptop_id):
+        result = [[0], [0]]
+        try:
+            print(f"Loading 2 prev records from {self.screen_analysis_table} table...")
+            sql = f'''
+                SELECT film FROM {self.screen_analysis_table} WHERE client_id = {client_id} and laptop_id = {laptop_id} ORDER BY created_at DESC LIMIT 2
+            '''
+            self.cursor.execute(sql)
+            result = self.cursor.fetchall()
+            print(f"Loaded {len(result)} records.")
+        except Exception as e:
+            print(f"Couldn't load the records: {e}")
+        
+        result += [[0], [0]]
+
+        additional_value = result[0][0] * self.prev_threshold + result[1][0] * self.prev_threshold2
+        print(client_id, laptop_id, "additional_value: ", additional_value)
+        return additional_value
+    
     def fetch_screens(self):
         latest_screen_id = 0
         try:
@@ -108,27 +136,15 @@ class Main:
             print(f"Loaded {len(result)} new screens.")
         except Exception as e:
             print(f"Couldn't load the new screens: {e}")
-        
+
         return result
 
     def insert_data_into_db(self, screen, nsfw_result, film_result={}, betting_result={}):
         try:
-            output_sql = f'''
-                INSERT INTO {self.screen_analysis_table} (
-                    screen_id,
-                    drawings,
-                    neutral,
-                    hentai,
-                    sexy,
-                    porn,
-                    film, 
-                    betting, 
-                    status
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            '''
+            additional_value = self.fetch_prev_records(screen[1], screen[2])
             output_records = []
-            report_records = []           
-            film_score = film_result['score']
+            report_records = []
+            film_score = film_result['score'] + additional_value
             if film_result['label'] not in ['extremeLongShot', 'fullShot', 'longShot', 'mediumCloseUp', 'mediumShot']:
                 film_score = 0
 
@@ -147,16 +163,26 @@ class Main:
                     report_value['betting'] = betting_result
 
                 if report_value != {}:
+                    result_ko = []
+                    result_en = []
                     output_status = "unsafe"
+                    for r_key, r_val in report_value.items():
+                        result_ko.append(f"{self.dictionary[r_key]}: {round(r_val, 4)}")
+                        result_en.append(f"{r_key}: {round(r_val, 4)}")
+
                     report_records.append((
                         screen[0], 
                         screen[1], 
                         screen[2], 
-                        json.dumps(report_value)
+                        json.dumps(report_value),
+                        ', '.join(result_ko),
+                        ', '.join(result_en)
                     ))
 
                 output_records.append((
                     screen[0], 
+                    screen[1], 
+                    screen[2], 
                     value['drawings'], 
                     value['neutral'], 
                     value['hentai'], 
@@ -166,7 +192,22 @@ class Main:
                     betting_result,
                     output_status
                 ))
-
+            
+            output_sql = f'''
+                INSERT INTO {self.screen_analysis_table} (
+                    screen_id,
+                    client_id,
+                    laptop_id, 
+                    drawings,
+                    neutral,
+                    hentai,
+                    sexy,
+                    porn,
+                    film, 
+                    betting, 
+                    status
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            '''
             self.cursor.executemany(output_sql, output_records)
 
             if len(report_records) > 0:
@@ -175,8 +216,10 @@ class Main:
                         screen_id,
                         client_id,
                         laptop_id,
-                        result
-                    ) VALUES (%s, %s, %s, %s)
+                        result,
+                        ko,
+                        en
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
                 '''
                 self.cursor.executemany(report_sql, report_records)
 
@@ -207,6 +250,8 @@ class Main:
                 CREATE TABLE IF NOT EXISTS {self.screen_analysis_table} (
                     id SERIAL PRIMARY KEY,
                     screen_id INT,
+                    client_id INT,
+                    laptop_id INT,
                     drawings FLOAT,
                     neutral FLOAT,
                     hentai FLOAT,
@@ -227,6 +272,8 @@ class Main:
                     client_id INT,
                     laptop_id INT,
                     result JSON,
+                    ko VARCHAR(255),
+                    en VARCHAR(255),
                     created_at TIMESTAMP default current_timestamp,
                     approved_by INT,
                     approved_at TIMESTAMP,
@@ -247,11 +294,11 @@ class Main:
 
 if __name__ == "__main__":
     main = Main()
-    # main.create_db_connection()
+    main.create_db_connection()
     # main.start_process()
-    # main.demo_process()
+    main.demo_process()
     # main.close_db_connection()
-    main.test_model()
+    # main.test_model()
 
 # if __name__ == "__main__":
 #     main = Main()
