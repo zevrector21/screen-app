@@ -60,11 +60,11 @@ model.compile(optimizer='adam',
     metrics=['accuracy']) 
 model.summary()
 
-epochs = 10
+epochs = 20
 history = model.fit( 
   train_ds, 
   validation_data=val_ds, 
   epochs=epochs 
 )
 
-model.save("model_apps")
+model.save("model_apps_2")

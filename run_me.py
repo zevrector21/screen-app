@@ -11,16 +11,22 @@ import json
 import pdb
 from transformers import pipeline
 from PIL import Image
+import shutil
+
 
 class Main:
-    directory_path = "samples"
+    directory_path = "files"
     screen_analysis_table = "image_analysis"
     screen_report_table = "image_report"
-    file_extension = ".png"
-    nsfw_threshold = 0.0048
-    film_threshold = 0.75
-    prev_threshold = 0.02
-    prev_threshold2 = 0.01
+    file_extension = ".jpg"
+    nsfw_threshold = {
+        hentai: 0.8,
+        sex: 0.75,
+        porn: 0.75
+    }
+    film_threshold = 0.95
+    prev_threshold = 0.005
+    prev_threshold2 = 0.001
     dictionary = {
         "hentai": "성관련",
         "sexy": "성관련",
@@ -31,9 +37,9 @@ class Main:
 
     def __init__(self):
         self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
-        self.betting_model = load_model('model_apps')
-        self.film_pipe = pipeline("image-classification", model="pszemraj/beit-large-patch16-512-film-shot-classifier")
-        # self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier")
+        self.betting_model = load_model('model_apps_2')
+        # self.film_pipe = pipeline("image-classification", model="pszemraj/beit-large-patch16-512-film-shot-classifier")
+        self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier")
 
     def test_model(self):
         file_list = os.listdir(self.directory_path)
@@ -49,7 +55,7 @@ class Main:
         print("Start demo...")
 
         file_list = os.listdir(self.directory_path)
-        for idx in range(1, 5):
+        for idx in range(1, 10):
             # screen[1] file path
             filename = random.choice(file_list)
             if not filename.endswith(self.file_extension):
@@ -69,19 +75,23 @@ class Main:
         screen_list = self.fetch_screens()
         file_list = os.listdir(self.directory_path)
         for screen in screen_list[::-1]:
-            # screen[1] file path
-            filename = random.choice(file_list)
-            if not filename.endswith(self.file_extension):
-                continue
+            try:
+                # screen[1] file path
+                # filename = random.choice(file_list)
+                # if not filename.endswith(self.file_extension):
+                #     continue
 
-            full_path_name = f'{self.directory_path}/{filename}'
-            image = Image.open(full_path_name)
+                # full_path_name = f'{self.directory_path}/{filename}'
+                full_path_name = screen[4]
+                image = Image.open(full_path_name)
 
-            nsfw_result = predict.classify(self.model, full_path_name)
-            film_result = self.film_pipe(image)[0]
-            betting_result = self.check_betting(full_path_name)
-            
-            self.insert_data_into_db(screen, nsfw_result, film_result, betting_result)
+                nsfw_result = predict.classify(self.model, full_path_name)
+                film_result = self.film_pipe(image)[0]
+                betting_result = self.check_betting(full_path_name)
+                
+                self.insert_data_into_db(screen, nsfw_result, film_result, betting_result)
+            except:
+                pass
 
     def check_betting(self, full_path_name):
         class_names = {0: "betting", 1: "others"}
@@ -91,7 +101,8 @@ class Main:
         predictions = self.betting_model.predict(img_array)
         pred_label = tf.argmax(predictions, axis = 1)
         print(class_names[pred_label.numpy()[0]])
-        return 1.0 - pred_label.numpy()[0]
+        return 1 - float(pred_label.numpy()[0])
+
     
     def fetch_prev_records(self, client_id, laptop_id):
         result = [[0], [0]]
@@ -122,6 +133,7 @@ class Main:
             self.cursor.execute(sql)
             latest_screen = self.cursor.fetchone()
             latest_screen_id = latest_screen[0]
+            print(f"Latest Id: {latest_screen_id}")
         except Exception as e:
             print(f"Couldn't load the latest screen: {e}")
 
@@ -129,7 +141,7 @@ class Main:
         try:
             print("Loading new screens from screens table...")
             sql = f'''
-                SELECT id, client_id, laptop_id, location FROM screens WHERE id > {latest_screen_id} ORDER BY created_at DESC LIMIT 10
+                SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC
             '''
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
@@ -153,13 +165,14 @@ class Main:
                 output_status = "safe"
 
                 for v_key, v_value in value.items():
-                    if v_value > self.nsfw_threshold and v_key in ['hentai', 'sexy', 'porn']:
+                    if v_value > self.nsfw_threshold[v_key] and v_key in ['hentai', 'sexy', 'porn']:
                         report_value[v_key] = v_value
 
-                if film_score > self.film_threshold:
-                    report_value['film'] = film_score
+                # if film_score > self.film_threshold:
+                #     report_value['film'] = film_score
 
                 if betting_result == 1:
+                    shutil.copyfile(screen[4], f'screens/{screen[0]}.png')
                     report_value['betting'] = betting_result
 
                 if report_value != {}:
@@ -167,8 +180,8 @@ class Main:
                     result_en = []
                     output_status = "unsafe"
                     for r_key, r_val in report_value.items():
-                        result_ko.append(f"{self.dictionary[r_key]}: {round(r_val, 4)}")
-                        result_en.append(f"{r_key}: {round(r_val, 4)}")
+                        result_ko.append(f"{self.dictionary[r_key]}: {round(r_val * 100, 2)}%")
+                        result_en.append(f"{r_key}: {round(r_val * 100, 2)}%")
 
                     report_records.append((
                         screen[0], 
@@ -229,21 +242,21 @@ class Main:
 
     def create_db_connection(self):
         try:
-            self.conn = psycopg2.connect(
-                host="localhost",
-                database="postgres",
-                user="postgres",
-                password="rootroot",
-                port="5432"
-            )
-            print("Connecting the database...")
             # self.conn = psycopg2.connect(
-            #     host = "192.168.2.24",
-            #     database = "production",
+            #     host="localhost",
+            #     database="postgres",
             #     user="postgres",
-            #     password = "postgrespassword",
-            #     port = "5432",
+            #     password="rootroot",
+            #     port="5432"
             # )
+            print("Connecting the database...")
+            self.conn = psycopg2.connect(
+                host = "192.168.2.24",
+                database = "production",
+                user="postgres",
+                password = "postgrespassword",
+                port = "5432",
+            )
             self.cursor = self.conn.cursor()
 
             table_creation = f'''
@@ -295,9 +308,11 @@ class Main:
 if __name__ == "__main__":
     main = Main()
     main.create_db_connection()
-    # main.start_process()
-    main.demo_process()
-    # main.close_db_connection()
+    while True:
+        main.start_process()
+        time.sleep(10)
+    # main.demo_process()
+    main.close_db_connection()
     # main.test_model()
 
 # if __name__ == "__main__":

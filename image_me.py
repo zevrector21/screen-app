@@ -29,13 +29,14 @@ film_pipe = pipeline(
 
 violation_pipe = pipeline(
     "image-classification",
-    model="AykeeSalazar/violation-classification-bantai_vit",
+    # model="AykeeSalazar/violation-classification-bantai_vit",
+    model="philfriedo81/rare-politiker",
 )
 
 # url = "https://cdn-uploads.huggingface.co/production/uploads/60bccec062080d33f875cd0c/9YqYvv188ZccCMSzuv0KW.png"
 # image = Image.open(requests.get(url, stream=True).raw)
-image = Image.open('files/samples/Screenshot from 2024-03-01 01-19-17.png')
-result = pipe(image)[0]
+image = Image.open('files/samples/Screenshot from 2024-03-01 01-16-50.png')
+result = violation_pipe(image)
 print(result)
 
 
