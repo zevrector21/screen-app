@@ -142,9 +142,8 @@ class Main:
         result = []
         try:
             print("Loading new screens from screens table...")
-            sql = f'''
-                SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC
-            '''
+            # sql = f'SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC'
+            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE s.id > {latest_screen_id} and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
             print(f"Loaded {len(result)} new screens.")
