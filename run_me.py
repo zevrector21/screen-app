@@ -20,24 +20,24 @@ class Main:
     screen_report_table = "image_report"
     file_extension = ".jpg"
     nsfw_threshold = {
-        hentai: 0.8,
-        sex: 0.75,
-        porn: 0.75
+        'hentai': 0.8,
+        'sexy': 0.75,
+        'porn': 0.75
     }
     film_threshold = 0.95
     prev_threshold = 0.005
     prev_threshold2 = 0.001
     dictionary = {
-        "hentai": "성관련",
-        "sexy": "성관련",
-        "porn": "성관련",
+        "hentai": "성관련(1)",
+        "sexy": "성관련(2)",
+        "porn": "성관련(3)",
         "film": "영화",
         "betting": "도박",
     }
 
     def __init__(self):
         self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
-        self.betting_model = load_model('model_apps_2')
+        # self.betting_model = load_model('model_apps_2')
         # self.film_pipe = pipeline("image-classification", model="pszemraj/beit-large-patch16-512-film-shot-classifier")
         self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier")
 
@@ -71,6 +71,7 @@ class Main:
 
     def start_process(self):
         print("Start processing...")
+        self.betting_model = load_model('model_apps_2')
 
         screen_list = self.fetch_screens()
         file_list = os.listdir(self.directory_path)
@@ -113,14 +114,15 @@ class Main:
             '''
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
-            print(f"Loaded {len(result)} records.")
+            # print(f"Loaded {len(result)} records.")
         except Exception as e:
-            print(f"Couldn't load the records: {e}")
+            # print(f"Couldn't load the records: {e}")
+            pass
         
         result += [[0], [0]]
 
         additional_value = result[0][0] * self.prev_threshold + result[1][0] * self.prev_threshold2
-        print(client_id, laptop_id, "additional_value: ", additional_value)
+        # print(client_id, laptop_id, "additional_value: ", additional_value)
         return additional_value
     
     def fetch_screens(self):
@@ -153,7 +155,8 @@ class Main:
 
     def insert_data_into_db(self, screen, nsfw_result, film_result={}, betting_result={}):
         try:
-            additional_value = self.fetch_prev_records(screen[1], screen[2])
+            # additional_value = self.fetch_prev_records(screen[1], screen[2])
+            additional_value = 0
             output_records = []
             report_records = []
             film_score = film_result['score'] + additional_value
@@ -165,7 +168,9 @@ class Main:
                 output_status = "safe"
 
                 for v_key, v_value in value.items():
-                    if v_value > self.nsfw_threshold[v_key] and v_key in ['hentai', 'sexy', 'porn']:
+                    if v_key not in ['hentai', 'sexy', 'porn']:
+                        continue 
+                    if v_value > self.nsfw_threshold[v_key]:
                         report_value[v_key] = v_value
 
                 # if film_score > self.film_threshold:

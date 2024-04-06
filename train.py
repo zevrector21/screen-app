@@ -3,13 +3,47 @@ import numpy as np
 import os 
 import PIL 
 import tensorflow as tf 
-  
+
 from tensorflow import keras 
 from tensorflow.keras import layers 
 from tensorflow.keras.models import Sequential
 import pathlib 
 
 import pdb
+import psycopg2
+
+
+# screen_analysis_table = "image_analysis"
+# screen_report_table = "image_report"
+
+# try:
+#     print("Connecting the database...")
+#     conn = psycopg2.connect(
+#         host = "192.168.2.24",
+#         database = "production",
+#         user="postgres",
+#         password = "postgrespassword",
+#         port = "5432",
+#     )
+#     cursor = conn.cursor()
+
+# except Exception as e:
+#     print(f"Couldn't connect the database: {e}")
+#     exit(1)
+
+# try:
+#     print(f"Loading the latest screen ID from {screen_report_table}...")
+#     sql = f'''
+#         SELECT screen_id FROM {screen_report_table} WHERE approved_status == 'REPORTED' and trained_status == true ORDER BY screen_id DESC LIMIT 1
+#     '''
+#     cursor.execute(sql)
+#     result = cursor.fetchall()
+# except Exception as e:
+#     print(f"Couldn't load the latest screen: {e}")
+
+
+# =================================
+
 
 print("TensorFlow version:", tf.__version__)
 
