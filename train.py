@@ -8,7 +8,7 @@ from tensorflow import keras
 from tensorflow.keras import layers 
 from tensorflow.keras.models import Sequential
 import pathlib 
-
+import time
 import schedule
 import psycopg2
 import shutil
@@ -58,13 +58,13 @@ def main():
     if len(reported_result) > 0 or len(approved_result) > 0:
         for record in reported_result:
             try:
-                shutil.move(f'screens/{record[0]}.png', f'screens/betting/{record[0]}.png')
+                shutil.move(f'files/temp/{record[0]}.png', f'screens/betting/{record[0]}.png')
             except:
                 pass
 
         for record in approved_result:
             try:
-                shutil.move(f'screens/{record[0]}.png', f'screens/others/{record[0]}.png')
+                shutil.move(f'files/temp/{record[0]}.png', f'screens/others/{record[0]}.png')
             except:
                 pass
 
@@ -102,7 +102,7 @@ def train():
             validation_split=0.2, 
             subset="training", 
             seed=123, 
-            image_size=(180, 180), 
+            image_size=(800,600), 
             batch_size=32
         )
 
@@ -112,7 +112,7 @@ def train():
             validation_split=0.2, 
             subset="validation", 
             seed=123, 
-            image_size=(180,180), 
+            image_size=(800,600), 
             batch_size=32
         )
          
@@ -123,7 +123,7 @@ def train():
         num_classes = len(class_names) 
           
         model = Sequential([ 
-            layers.Rescaling(1./255, input_shape=(180,180, 3)), 
+            layers.Rescaling(1./255, input_shape=(800,600, 3)), 
             layers.Conv2D(16, 3, padding='same', activation='relu'), 
             layers.MaxPooling2D(), 
             layers.Conv2D(32, 3, padding='same', activation='relu'), 
@@ -141,14 +141,14 @@ def train():
             metrics=['accuracy']) 
         model.summary()
 
-        epochs = 20
+        epochs = 15
         history = model.fit( 
           train_ds, 
           validation_data=val_ds, 
           epochs=epochs 
         )
 
-        model.save("model_apps_2")
+        model.save("model_apps")
 
         return True
 
@@ -157,6 +157,8 @@ def train():
         return False
 
 if __name__ == "__main__":
+    main()
+    exit(0)
     local_timezone = "America/New_York"
     schedule.every().day.at("07:00", local_timezone).do(main)
     schedule.every().day.at("13:00", local_timezone).do(main)

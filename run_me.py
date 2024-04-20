@@ -34,12 +34,13 @@ class Main:
         "film": "영화",
         "betting": "도박",
     }
+    betting_result = ["mp4", "avi", "mpeg"]
 
     def __init__(self):
         self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
-        # self.betting_model = load_model('model_apps_2')
+        # self.betting_model = load_model('model_apps')
         # self.film_pipe = pipeline("image-classification", model="pszemraj/beit-large-patch16-512-film-shot-classifier")
-        self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier")
+        # self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier") - primary
 
     def test_model(self):
         file_list = os.listdir(self.directory_path)
@@ -71,7 +72,7 @@ class Main:
 
     def start_process(self):
         print("Start processing...")
-        self.betting_model = load_model('model_apps_2')
+        self.betting_model = load_model('model_apps')
 
         screen_list = self.fetch_screens()
         file_list = os.listdir(self.directory_path)
@@ -87,22 +88,23 @@ class Main:
                 image = Image.open(full_path_name)
 
                 nsfw_result = predict.classify(self.model, full_path_name)
-                film_result = self.film_pipe(image)[0]
-                betting_result = self.check_betting(full_path_name)
+                betting_result = {}
+                if screen[5].split('.')[-1].lower() not in self.betting_exception:
+                    betting_result = self.check_betting(full_path_name)
                 
-                self.insert_data_into_db(screen, nsfw_result, film_result, betting_result)
+                # film_result = self.film_pipe(image)[0]
+                self.insert_data_into_db(screen, nsfw_result, {}, betting_result)
             except:
                 pass
 
     def check_betting(self, full_path_name):
-        class_names = {0: "betting", 1: "others"}
-        model = load_model('model_apps')
-        img = load_img(full_path_name, target_size=(180, 180))
+        class_names = {0: "betting", 1: "others", 2: "photo", 3: "windows"}
+        img = load_img(full_path_name, target_size=(800, 600))
         img_array = tf.expand_dims(img, axis=0)
         predictions = self.betting_model.predict(img_array)
         pred_label = tf.argmax(predictions, axis = 1)
         print(class_names[pred_label.numpy()[0]])
-        return 1 - float(pred_label.numpy()[0])
+        return float(pred_label.numpy()[0])
 
     
     def fetch_prev_records(self, client_id, laptop_id):
@@ -142,8 +144,8 @@ class Main:
         result = []
         try:
             print("Loading new screens from screens table...")
-            # sql = f'SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC'
-            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE s.id > {latest_screen_id} and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
+            # sql = f"SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC"
+            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE s.id > {latest_screen_id} and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
             print(f"Loaded {len(result)} new screens.")
@@ -155,12 +157,12 @@ class Main:
     def insert_data_into_db(self, screen, nsfw_result, film_result={}, betting_result={}):
         try:
             # additional_value = self.fetch_prev_records(screen[1], screen[2])
-            additional_value = 0
+            # additional_value = 0
+            # film_score = film_result['score'] + additional_value
+            # if film_result['label'] not in ['extremeLongShot', 'fullShot', 'longShot', 'mediumCloseUp', 'mediumShot']:
+            film_score = 0
             output_records = []
             report_records = []
-            film_score = film_result['score'] + additional_value
-            if film_result['label'] not in ['extremeLongShot', 'fullShot', 'longShot', 'mediumCloseUp', 'mediumShot']:
-                film_score = 0
 
             for key, value in nsfw_result.items():
                 report_value = {}
@@ -175,8 +177,8 @@ class Main:
                 # if film_score > self.film_threshold:
                 #     report_value['film'] = film_score
 
-                if betting_result == 1:
-                    shutil.copyfile(screen[4], f'screens/{screen[0]}.png')
+                if betting_result == 0:
+                    shutil.copyfile(screen[4], f'files/temp/{screen[0]}.png')
                     report_value['betting'] = betting_result
 
                 if report_value != {}:
@@ -184,8 +186,10 @@ class Main:
                     result_en = []
                     output_status = "unsafe"
                     for r_key, r_val in report_value.items():
-                        result_ko.append(f"{self.dictionary[r_key]}: {round(r_val * 100, 2)}%")
-                        result_en.append(f"{r_key}: {round(r_val * 100, 2)}%")
+                        result_ko.append(f"{self.dictionary[r_key]}")
+                        result_en.append(f"{r_key}")
+                        # result_ko.append(f"{self.dictionary[r_key]}: {round(r_val * 100, 2)}%")
+                        # result_en.append(f"{r_key}: {round(r_val * 100, 2)}%")
 
                     report_records.append((
                         screen[0], 
@@ -314,7 +318,7 @@ if __name__ == "__main__":
     main.create_db_connection()
     while True:
         main.start_process()
-        time.sleep(10)
+        time.sleep(60)
     # main.demo_process()
     main.close_db_connection()
     # main.test_model()
