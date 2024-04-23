@@ -141,7 +141,7 @@ def train():
             metrics=['accuracy']) 
         model.summary()
 
-        epochs = 15
+        epochs = 20
         history = model.fit( 
           train_ds, 
           validation_data=val_ds, 

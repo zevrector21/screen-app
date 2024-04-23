@@ -34,7 +34,7 @@ class Main:
         "film": "영화",
         "betting": "도박",
     }
-    betting_result = ["mp4", "avi", "mpeg"]
+    betting_exception_list= ["mp4", "avi", "mpeg", "pdf"]
 
     def __init__(self):
         self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
@@ -89,7 +89,8 @@ class Main:
 
                 nsfw_result = predict.classify(self.model, full_path_name)
                 betting_result = {}
-                if screen[5].split('.')[-1].lower() not in self.betting_exception:
+
+                if screen[5].split('.')[-1].lower() not in self.betting_exception_list:
                     betting_result = self.check_betting(full_path_name)
                 
                 # film_result = self.film_pipe(image)[0]
@@ -100,6 +101,10 @@ class Main:
     def check_betting(self, full_path_name):
         class_names = {0: "betting", 1: "others", 2: "photo", 3: "windows"}
         img = load_img(full_path_name, target_size=(800, 600))
+        img_temp = load_img(full_path_name)
+        print(f"image resolution: {img_temp.width} * {img_temp.height}")
+        if img_temp.height < 500 or img_temp.width < 600:
+            return 3
         img_array = tf.expand_dims(img, axis=0)
         predictions = self.betting_model.predict(img_array)
         pred_label = tf.argmax(predictions, axis = 1)
@@ -145,7 +150,7 @@ class Main:
         try:
             print("Loading new screens from screens table...")
             # sql = f"SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC"
-            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE s.id > {latest_screen_id} and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
+            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path, s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE s.id > {latest_screen_id} and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
             print(f"Loaded {len(result)} new screens.")
@@ -318,7 +323,7 @@ if __name__ == "__main__":
     main.create_db_connection()
     while True:
         main.start_process()
-        time.sleep(60)
+        time.sleep(300)
     # main.demo_process()
     main.close_db_connection()
     # main.test_model()
