@@ -133,24 +133,11 @@ class Main:
         return additional_value
     
     def fetch_screens(self):
-        latest_screen_id = 0
-        try:
-            print(f"Loading the latest screen ID from {self.screen_analysis_table}...")
-            sql = f'''
-                SELECT screen_id FROM {self.screen_analysis_table} ORDER BY screen_id DESC LIMIT 1
-            '''
-            self.cursor.execute(sql)
-            latest_screen = self.cursor.fetchone()
-            latest_screen_id = latest_screen[0]
-            print(f"Latest Id: {latest_screen_id}")
-        except Exception as e:
-            print(f"Couldn't load the latest screen: {e}")
-
         result = []
         try:
             print("Loading new screens from screens table...")
             # sql = f"SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC"
-            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path, s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE s.id > {latest_screen_id} and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
+            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path, s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE sp.is_image_processed = false and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
             print(f"Loaded {len(result)} new screens.")
