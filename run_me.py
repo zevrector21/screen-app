@@ -236,6 +236,11 @@ class Main:
                 '''
                 self.cursor.executemany(report_sql, report_records)
 
+            screen_preprocess_sql = f'''
+                UPDATE screen_preprocesses SET is_image_processed = true WHERE screen_id = {screen[0]}
+            '''
+            self.cursor.execute(screen_preprocess_sql)
+
             self.conn.commit()
         except Exception as e:
             print(f"Couldn't insert the record into the database: {e}")
