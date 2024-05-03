@@ -32,7 +32,7 @@ class Main:
         "sexy": "성관련(2)",
         "porn": "성관련(3)",
         "film": "영화",
-        "betting": "도박",
+        "betting": "다매체/오락/도박",
     }
     betting_exception_list= ["mp4", "avi", "mpeg", "pdf"]
 
@@ -72,7 +72,7 @@ class Main:
 
     def start_process(self):
         print("Start processing...")
-        self.betting_model = load_model('model_apps')
+        self.betting_model = load_model('model_apps_new')
 
         screen_list = self.fetch_screens()
         file_list = os.listdir(self.directory_path)
@@ -88,7 +88,7 @@ class Main:
                 image = Image.open(full_path_name)
 
                 nsfw_result = predict.classify(self.model, full_path_name)
-                betting_result = {}
+                betting_result = 1
 
                 if screen[5].split('.')[-1].lower() not in self.betting_exception_list:
                     betting_result = self.check_betting(full_path_name)
@@ -146,7 +146,7 @@ class Main:
 
         return result
 
-    def insert_data_into_db(self, screen, nsfw_result, film_result={}, betting_result={}):
+    def insert_data_into_db(self, screen, nsfw_result, film_result={}, betting_result=1):
         try:
             # additional_value = self.fetch_prev_records(screen[1], screen[2])
             # additional_value = 0

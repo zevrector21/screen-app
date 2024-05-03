@@ -123,14 +123,14 @@ def train():
         num_classes = len(class_names) 
           
         model = Sequential([ 
-            layers.Rescaling(1./255, input_shape=(800,600, 3)), 
+            layers.Rescaling(1./255, input_shape=(None, None, 3)), 
             layers.Conv2D(16, 3, padding='same', activation='relu'), 
             layers.MaxPooling2D(), 
             layers.Conv2D(32, 3, padding='same', activation='relu'), 
             layers.MaxPooling2D(), 
             layers.Conv2D(64, 3, padding='same', activation='relu'), 
             layers.MaxPooling2D(), 
-            layers.Flatten(), 
+            layers.GlobalMaxPooling2D(), 
             layers.Dense(128, activation='relu'), 
             layers.Dense(num_classes) 
         ])
@@ -141,14 +141,14 @@ def train():
             metrics=['accuracy']) 
         model.summary()
 
-        epochs = 20
+        epochs = 80
         history = model.fit( 
           train_ds, 
           validation_data=val_ds, 
           epochs=epochs 
         )
 
-        model.save("model_apps")
+        model.save("model_apps_new")
 
         return True
 
@@ -157,7 +157,7 @@ def train():
         return False
 
 if __name__ == "__main__":
-    main()
+    train()
     exit(0)
     local_timezone = "America/New_York"
     schedule.every().day.at("07:00", local_timezone).do(main)
