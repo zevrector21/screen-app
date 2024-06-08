@@ -1,0 +1,16 @@
+[Unit]
+Description=Image Analysis
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/com/Documents/tracker/screen-app/venv/bin/python3  /home/com/Documents/tracker/screen-app/run_me.py
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=image_analysis
+
+
+[Install]
+WantedBy=multi-user.target

@@ -14,6 +14,7 @@ import psycopg2
 import shutil
 import pdb
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def main():
 
@@ -148,7 +149,7 @@ def train():
           epochs=epochs 
         )
 
-        model.save("model_apps_new")
+        model.save("model_apps")
 
         return True
 

@@ -9,9 +9,11 @@ import schedule
 import time
 import json
 import pdb
-from transformers import pipeline
+# from transformers import pipeline
 from PIL import Image
 import shutil
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 class Main:
@@ -37,7 +39,7 @@ class Main:
     betting_exception_list= ["mp4", "avi", "mpeg", "pdf"]
 
     def __init__(self):
-        self.model = predict.load_model("./nsfw_mobilenet2.224x224.h5")
+        self.model = predict.load_model("/home/com/Documents/tracker/screen-app/nsfw_mobilenet2.224x224.h5")
         # self.betting_model = load_model('model_apps')
         # self.film_pipe = pipeline("image-classification", model="pszemraj/beit-large-patch16-512-film-shot-classifier")
         # self.film_pipe = pipeline("image-classification", model="pszemraj/dinov2-small-film-shot-classifier") - primary
@@ -72,10 +74,10 @@ class Main:
 
     def start_process(self):
         print("Start processing...")
-        self.betting_model = load_model('model_apps_new')
+        self.betting_model = load_model('/home/com/Documents/tracker/screen-app/model_apps')
 
         screen_list = self.fetch_screens()
-        file_list = os.listdir(self.directory_path)
+        # file_list = os.listdir(self.directory_path)
         for screen in screen_list[::-1]:
             try:
                 # screen[1] file path
@@ -95,7 +97,7 @@ class Main:
                 
                 # film_result = self.film_pipe(image)[0]
                 self.insert_data_into_db(screen, nsfw_result, {}, betting_result)
-            except:
+            except Exception as e:
                 pass
 
     def check_betting(self, full_path_name):
@@ -137,7 +139,7 @@ class Main:
         try:
             print("Loading new screens from screens table...")
             # sql = f"SELECT id, client_id, laptop_id, location, internal_path FROM screens WHERE id > {latest_screen_id} and type != 'main' ORDER BY created_at DESC"
-            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path, s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE sp.is_image_processed = false and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
+            sql = f'SELECT s.id, s.client_id, s.laptop_id, s.location, s.internal_path, s.app_title FROM screens s LEFT JOIN screen_preprocesses sp ON s.id = sp.screen_id WHERE sp.is_image_processed is NULL and sp.ignore_image_processing = false ORDER BY s.created_at DESC'
             self.cursor.execute(sql)
             result = self.cursor.fetchall()
             print(f"Loaded {len(result)} new screens.")
@@ -169,9 +171,9 @@ class Main:
                 # if film_score > self.film_threshold:
                 #     report_value['film'] = film_score
 
-                if betting_result == 0:
-                    shutil.copyfile(screen[4], f'files/temp/{screen[0]}.png')
-                    report_value['betting'] = betting_result
+                # if betting_result == 0:
+                #     shutil.copyfile(screen[4], f'files/temp/{screen[0]}.png')
+                #     report_value['betting'] = betting_result
 
                 if report_value != {}:
                     result_ko = []
@@ -205,7 +207,7 @@ class Main:
                     betting_result,
                     output_status
                 ))
-            
+
             output_sql = f'''
                 INSERT INTO {self.screen_analysis_table} (
                     screen_id,
@@ -247,20 +249,20 @@ class Main:
 
     def create_db_connection(self):
         try:
-            # self.conn = psycopg2.connect(
-            #     host="localhost",
-            #     database="postgres",
-            #     user="postgres",
-            #     password="rootroot",
-            #     port="5432"
-            # )
             print("Connecting the database...")
+            # self.conn = psycopg2.connect(
+            #     host = "192.168.2.24",
+            #     database = "production",
+            #     user="postgres",
+            #     password = "postgrespassword",
+            #     port = "5432",
+            # )
             self.conn = psycopg2.connect(
-                host = "192.168.2.24",
-                database = "production",
+                host="localhost",
+                database="production",
                 user="postgres",
-                password = "postgrespassword",
-                port = "5432",
+                password="postgrespassword",
+                port="5432"
             )
             self.cursor = self.conn.cursor()
 

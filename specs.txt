@@ -6,3 +6,13 @@ python3.9
 virtualenv -p python3.9 venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+
+sudo mv image_analysis.service /etc/systemd/system/image_analysis.service
+
+sudo systemctl daemon-reload
+sudo systemctl start image_analysis.service
+sudo systemctl enable image_analysis.service
+sudo systemctl status image_analysis.service
+
+sudo journalctl -u image_analysis.service -f
